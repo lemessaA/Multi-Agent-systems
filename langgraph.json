@@ -1,0 +1,7 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+        "agen": "./agents/router_agent.py:workflow"
+    },
+    "env": ".env"
+}
