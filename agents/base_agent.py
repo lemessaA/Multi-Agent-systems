@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 from langchain_core.tools import Tool
 from langchain.agents import AgentExecutor
-from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from langchain.memory import ConversationBufferMemory
 from langchain.agents import create_react_agent
 from langchain_core.prompts import PromptTemplate
@@ -12,10 +12,10 @@ from schemas.models import AgentType, AgentResponse
 class BaseAgent(ABC):
     def __init__(self, agent_type: AgentType):
         self.agent_type = agent_type
-        self.llm = ChatGroq(
-            model="llama-3.1-8b-instant",
-            temperature=0.3,
-            api_key=settings.GROQ_API_KEY
+        self.llm = ChatOllama(
+            model=settings.OLLAMA_MODEL,
+            base_url=settings.OLLAMA_BASE_URL,
+            temperature=0.3
         )
         self.memory = ConversationBufferMemory(
             memory_key="chat_history",

@@ -49,14 +49,19 @@ A production-ready multi-agent system with intelligent routing, real-time data f
 
                     Python 3.11+
 
-                    OpenAI API Key
-
+                    Ollama installed locally
                     (Optional) API keys for enhanced services
 
                     INSTALLATION
                     # Clone the repository
 git clone https://github.com/lemessaA/multi-agent-system.git
 cd multi-agent-system
+
+# Install Ollama (if not already installed)
+# Visit: https://ollama.ai/download
+
+# Pull the required model
+ollama pull llama3.1:8b
 
 # Create virtual environment
 python -m venv venv
@@ -72,13 +77,14 @@ pip install -r requirements.txt
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env with your configuration
 
 
 
     ENVIRONMENT CONFIGURATON
-# Required
-OPENAI_API_KEY=sk-your-openai-api-key-here
+# Required (Ollama Configuration)
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.1:8b
 
 # Optional (for enhanced functionality)
 OPENWEATHER_API_KEY=your_openweather_api_key

@@ -1,6 +1,6 @@
 from typing import Dict, Any, List
 from langgraph.graph import StateGraph, END
-from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
 from schemas.models import AgentType, AgentRequest, AgentResponse
 from config.settings import settings
@@ -17,10 +17,10 @@ class RouterState:
 
 class SimpleRouterAgent:
     def __init__(self):
-        self.llm = ChatGroq(
-            model="llama-3.1-8b-instant",
-            temperature=0.1,
-            api_key=settings.GROQ_API_KEY
+        self.llm = ChatOllama(
+            model=settings.OLLAMA_MODEL,
+            base_url=settings.OLLAMA_BASE_URL,
+            temperature=0.1
         )
         
         # Create the router graph
