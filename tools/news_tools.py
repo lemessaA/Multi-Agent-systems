@@ -1,7 +1,7 @@
 import requests
 import aiohttp
 import asyncio
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from config.settings import settings
 from bs4 import BeautifulSoup
 

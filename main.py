@@ -27,7 +27,7 @@ def check_environment():
     if missing_vars:
         print(f"❌ Missing environment variables: {', '.join(missing_vars)}")
         print("Please create a .env file with the following variables:")
-        print("OPENAI_API_KEY=your_openai_api_key_here")
+        print("GROQ_API_KEY=your_groq_api_key_here")
         print("OPENWEATHER_API_KEY=your_openweather_api_key_here (optional)")
         print("NEWS_API_KEY=your_newsapi_key_here (optional)")
         print("ALPHA_VANTAGE_API_KEY=your_alphavantage_key_here (optional)")

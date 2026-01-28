@@ -3,9 +3,6 @@ from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from schemas.models import AgentType, AgentRequest, AgentResponse
-from agents.weather_agent import WeatherAgent
-from agents.news_agent import NewsAgent
-from agents.finance_agent import FinanceAgent
 from config.settings import settings
 import uuid
 from datetime import datetime
@@ -18,20 +15,13 @@ class RouterState:
         self.conversation_id: str = ""
         self.start_time: datetime = None
 
-class RouterAgent:
+class SimpleRouterAgent:
     def __init__(self):
         self.llm = ChatGroq(
             model="llama-3.1-8b-instant",
             temperature=0.1,
             api_key=settings.GROQ_API_KEY
         )
-        
-        # Initialize specialized agents
-        self.agents = {
-            AgentType.WEATHER: WeatherAgent(),
-            AgentType.NEWS: NewsAgent(),
-            AgentType.FINANCE: FinanceAgent()
-        }
         
         # Create the router graph
         self.workflow = self._create_workflow()
@@ -89,21 +79,36 @@ class RouterAgent:
         return {"agent_type": result.content.strip().lower()}
 
     async def _execute_weather_agent(self, state: RouterState) -> Dict[str, Any]:
-        """Execute weather agent"""
-        agent = self.agents[AgentType.WEATHER]
-        response = await agent.execute(state.query)
+        """Execute weather agent - simplified version"""
+        # Simple weather response for now
+        response = AgentResponse(
+            agent_type=AgentType.WEATHER,
+            response=f"Weather information for: {state.query} (This is a placeholder response)",
+            source="weather_agent",
+            confidence=0.8
+        )
         return {"responses": [response]}
 
     async def _execute_news_agent(self, state: RouterState) -> Dict[str, Any]:
-        """Execute news agent"""
-        agent = self.agents[AgentType.NEWS]
-        response = await agent.execute(state.query)
+        """Execute news agent - simplified version"""
+        # Simple news response for now
+        response = AgentResponse(
+            agent_type=AgentType.NEWS,
+            response=f"News information for: {state.query} (This is a placeholder response)",
+            source="news_agent",
+            confidence=0.8
+        )
         return {"responses": [response]}
 
     async def _execute_finance_agent(self, state: RouterState) -> Dict[str, Any]:
-        """Execute finance agent"""
-        agent = self.agents[AgentType.FINANCE]
-        response = await agent.execute(state.query)
+        """Execute finance agent - simplified version"""
+        # Simple finance response for now
+        response = AgentResponse(
+            agent_type=AgentType.FINANCE,
+            response=f"Finance information for: {state.query} (This is a placeholder response)",
+            source="finance_agent",
+            confidence=0.8
+        )
         return {"responses": [response]}
 
     def _decide_next_node(self, state: RouterState) -> str:
@@ -154,3 +159,15 @@ class RouterAgent:
             "execution_time": execution_time,
             "agent_type": request.agent_type or "auto"
         }
+
+# Create the workflow instance (only when imported with API key)
+def get_workflow():
+    """Get the workflow instance"""
+    return SimpleRouterAgent().workflow
+
+# For LangGraph Studio, create workflow when module is loaded
+try:
+    workflow = SimpleRouterAgent().workflow
+except Exception:
+    # Fallback for testing without API key
+    workflow = None

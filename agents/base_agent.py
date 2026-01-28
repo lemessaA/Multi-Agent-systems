@@ -1,20 +1,21 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
-from langchain.agents import Tool, AgentExecutor
-from langchain_openai import ChatOpenAI
+from langchain_core.tools import Tool
+from langchain.agents import AgentExecutor
+from langchain_groq import ChatGroq
 from langchain.memory import ConversationBufferMemory
 from langchain.agents import create_react_agent
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from config.settings import settings
 from schemas.models import AgentType, AgentResponse
 
 class BaseAgent(ABC):
     def __init__(self, agent_type: AgentType):
         self.agent_type = agent_type
-        self.llm = ChatOpenAI(
-            model="gpt-3.5-turbo",
+        self.llm = ChatGroq(
+            model="llama-3.1-8b-instant",
             temperature=0.3,
-            api_key=settings.OPENAI_API_KEY
+            api_key=settings.GROQ_API_KEY
         )
         self.memory = ConversationBufferMemory(
             memory_key="chat_history",

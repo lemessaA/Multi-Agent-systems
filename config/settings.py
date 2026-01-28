@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings:
-    # OpenAI API Key
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    # GROQ API Key
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     
     # API Keys for external services
     OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
