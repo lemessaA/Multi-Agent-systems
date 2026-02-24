@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from langgraph.graph import StateGraph, END
 from langchain_core.prompts import PromptTemplate
 from schemas.models import AgentType, AgentRequest, AgentResponse
@@ -6,13 +6,8 @@ from llm_factory import get_chat_llm
 import uuid
 from datetime import datetime
 
-class RouterState:
-    def __init__(self):
-        self.query: str = ""
-        self.agent_type: AgentType = None
-        self.responses: List[AgentResponse] = []
-        self.conversation_id: str = ""
-        self.start_time: datetime = None
+# Use dict-based state for LangGraph compatibility
+RouterState = Dict[str, Any]
 
 class SimpleRouterAgent:
     def __init__(self):
@@ -53,7 +48,7 @@ class SimpleRouterAgent:
 
         return workflow.compile()
 
-    async def _route_query(self, state: RouterState) -> Dict[str, Any]:
+    async def _route_query(self, state: RouterState) -> RouterState:
         """Route query to appropriate agent"""
         prompt = PromptTemplate.from_template("""
         Analyze the user query and determine which agent(s) should handle it.
@@ -69,67 +64,77 @@ class SimpleRouterAgent:
         """)
         
         chain = prompt | self.llm
-        result = await chain.ainvoke({"query": state.query})
+        result = await chain.ainvoke({"query": state["query"]})
         
-        return {"agent_type": result.content.strip().lower()}
+        state["agent_type"] = result.content.strip().lower()
+        return state
 
-    async def _execute_weather_agent(self, state: RouterState) -> Dict[str, Any]:
+    async def _execute_weather_agent(self, state: RouterState) -> RouterState:
         """Execute weather agent - simplified version"""
         # Simple weather response for now
         response = AgentResponse(
             agent_type=AgentType.WEATHER,
-            response=f"Weather information for: {state.query} (This is a placeholder response)",
+            response=f"Weather information for: {state['query']} (This is a placeholder response)",
             source="weather_agent",
             confidence=0.8
         )
-        return {"responses": [response]}
+        state["responses"] = [response]
+        return state
 
-    async def _execute_news_agent(self, state: RouterState) -> Dict[str, Any]:
+    async def _execute_news_agent(self, state: RouterState) -> RouterState:
         """Execute news agent - simplified version"""
         # Simple news response for now
         response = AgentResponse(
             agent_type=AgentType.NEWS,
-            response=f"News information for: {state.query} (This is a placeholder response)",
+            response=f"News information for: {state['query']} (This is a placeholder response)",
             source="news_agent",
             confidence=0.8
         )
-        return {"responses": [response]}
+        state["responses"] = [response]
+        return state
 
-    async def _execute_finance_agent(self, state: RouterState) -> Dict[str, Any]:
+    async def _execute_finance_agent(self, state: RouterState) -> RouterState:
         """Execute finance agent - simplified version"""
         # Simple finance response for now
         response = AgentResponse(
             agent_type=AgentType.FINANCE,
-            response=f"Finance information for: {state.query} (This is a placeholder response)",
+            response=f"Finance information for: {state['query']} (This is a placeholder response)",
             source="finance_agent",
             confidence=0.8
         )
-        return {"responses": [response]}
+        state["responses"] = [response]
+        return state
 
     def _decide_next_node(self, state: RouterState) -> str:
         """Decide next node based on router output"""
-        return state.agent_type
+        return state["agent_type"]
 
-    async def _aggregate_responses(self, state: RouterState) -> Dict[str, Any]:
+    async def _aggregate_responses(self, state: RouterState) -> RouterState:
         """Aggregate responses from multiple agents"""
         # If we have responses from execution nodes, add them
-        if hasattr(state, 'responses') and state.responses:
-            all_responses = state.responses
-        else:
-            all_responses = []
+        all_responses = state.get("responses", [])
         
-        return {
-            "responses": all_responses,
-            "execution_complete": True
-        }
+        # Calculate execution time
+        execution_time = (datetime.now() - state["start_time"]).total_seconds()
+        
+        # Update state with final results
+        state["execution_complete"] = True
+        state["execution_time"] = execution_time
+        
+        return state
 
     async def process(self, request: AgentRequest) -> Dict[str, Any]:
         """Process query through router"""
         # Initialize state
-        state = RouterState()
-        state.query = request.query
-        state.conversation_id = str(uuid.uuid4())
-        state.start_time = datetime.now()
+        state = {
+            "query": request.query,
+            "conversation_id": str(uuid.uuid4()),
+            "start_time": datetime.now(),
+            "responses": [],
+            "agent_type": None,
+            "execution_complete": False,
+            "execution_time": 0.0
+        }
         
         # If agent type is specified, use it directly
         if request.agent_type:
@@ -146,12 +151,16 @@ class SimpleRouterAgent:
             # Use router for auto-detection
             result = await self.workflow.ainvoke(state)
         
-        execution_time = (datetime.now() - state.start_time).total_seconds()
+        execution_time = (datetime.now() - state["start_time"]).total_seconds()
+        
+        # Handle the result - it should be a dict now
+        responses = result.get("responses", [])
+        final_execution_time = result.get("execution_time", execution_time)
         
         return {
-            "conversation_id": state.conversation_id,
-            "responses": result.get("responses", []),
-            "execution_time": execution_time,
+            "conversation_id": state["conversation_id"],
+            "responses": [response.__dict__ for response in responses] if responses else [],
+            "execution_time": final_execution_time,
             "agent_type": request.agent_type or "auto"
         }
 

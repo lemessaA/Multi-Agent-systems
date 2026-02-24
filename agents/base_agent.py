@@ -53,9 +53,23 @@ class BaseAgent(ABC):
         """Parse raw agent response"""
         return raw_response
 
-    def _extract_data(self, result: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_data(self, result) -> Dict[str, Any]:
         """Extract structured data from agent result"""
-        return {
-            "raw_output": result.get('output', ''),
-            "intermediate_steps": str(result.get('intermediate_steps', []))
-        }
+        # Handle AIMessage objects
+        if hasattr(result, 'content'):
+            return {
+                "raw_output": result.content,
+                "intermediate_steps": []
+            }
+        # Handle dict objects
+        elif isinstance(result, dict):
+            return {
+                "raw_output": result.get('output', ''),
+                "intermediate_steps": str(result.get('intermediate_steps', []))
+            }
+        # Handle other objects
+        else:
+            return {
+                "raw_output": str(result),
+                "intermediate_steps": []
+            }

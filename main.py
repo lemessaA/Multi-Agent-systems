@@ -17,23 +17,26 @@ load_dotenv()
 
 def check_environment():
     """Check required environment variables"""
-    required_vars = ['OPENAI_API_KEY']
+    # For Ollama, no API key is required
+    print("✅ Using Ollama - no API key required for LLM")
     
-    missing_vars = []
-    for var in required_vars:
+    # Check optional API keys for enhanced functionality
+    optional_vars = ['OPENWEATHER_API_KEY', 'NEWS_API_KEY', 'ALPHA_VANTAGE_API_KEY']
+    missing_optional = []
+    
+    for var in optional_vars:
         if not os.getenv(var):
-            missing_vars.append(var)
+            missing_optional.append(var)
     
-    if missing_vars:
-        print(f"❌ Missing environment variables: {', '.join(missing_vars)}")
-        print("Please create a .env file with the following variables:")
-        print("GROQ_API_KEY=your_groq_api_key_here")
-        print("OPENWEATHER_API_KEY=your_openweather_api_key_here (optional)")
-        print("NEWS_API_KEY=your_newsapi_key_here (optional)")
-        print("ALPHA_VANTAGE_API_KEY=your_alphavantage_key_here (optional)")
-        return False
+    if missing_optional:
+        print(f"⚠️  Optional API keys not set: {', '.join(missing_optional)}")
+        print("For enhanced functionality, add these to your .env file:")
+        print("OPENWEATHER_API_KEY=your_openweather_api_key_here")
+        print("NEWS_API_KEY=your_newsapi_key_here")
+        print("ALPHA_VANTAGE_API_KEY=your_alphavantage_key_here")
+        print("\nNote: System will work with Ollama without these keys")
     
-    print("✅ Environment variables check passed")
+    print("✅ Environment check passed")
     return True
 
 def main():
@@ -45,8 +48,9 @@ def main():
         sys.exit(1)
     
     # Start FastAPI server
-    print("🌐 Starting API server on http://localhost:8000")
-    print("📚 API Documentation: http://localhost:8000/docs")
+    port = 8001 if os.getenv("PORT") else 8000
+    print(f"🌐 Starting API server on http://localhost:{port}")
+    print(f"📚 API Documentation: http://localhost:{port}/docs")
     print("\nExample queries:")
     print("  • Weather: 'What's the temperature in Paris?'")
     print("  • News: 'Show me top headlines'")
@@ -57,7 +61,7 @@ def main():
         uvicorn.run(
             "api.app:app",
             host="0.0.0.0",
-            port=8000,
+            port=port,
             reload=False,
             log_level="info"
         )
