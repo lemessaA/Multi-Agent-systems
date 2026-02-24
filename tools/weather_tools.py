@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any
 from config.settings import settings
 
 class WeatherTools:
-    @staticmethod
+    @staticmethod  
     def get_current_weather(location: str) -> Dict[str, Any]:
         """Get current weather for a location using OpenWeather API"""
         try:

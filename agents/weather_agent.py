@@ -1,6 +1,6 @@
 from agents.base_agent import BaseAgent
 from tools.weather_tools import WeatherTools
-from langchain.agents import Tool
+from langchain_core.tools import Tool
 from schemas.models import AgentType
 from typing import List
 

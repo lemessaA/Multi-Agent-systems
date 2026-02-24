@@ -1,89 +1,52 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
-from langchain_core.tools import Tool
-from langchain.agents import AgentExecutor
-from langchain_ollama import ChatOllama
-from langchain.memory import ConversationBufferMemory
-from langchain.agents import create_react_agent
+
 from langchain_core.prompts import PromptTemplate
-from config.settings import settings
+
+from llm_factory import get_chat_llm
 from schemas.models import AgentType, AgentResponse
+
 
 class BaseAgent(ABC):
     def __init__(self, agent_type: AgentType):
         self.agent_type = agent_type
-        self.llm = ChatOllama(
-            model=settings.OLLAMA_MODEL,
-            base_url=settings.OLLAMA_BASE_URL,
-            temperature=0.3
-        )
-        self.memory = ConversationBufferMemory(
-            memory_key="chat_history",
-            return_messages=True
-        )
+        self.llm = get_chat_llm(temperature=0.3)
+        # Hook for subclasses to register tools if needed.
         self.tools = self._initialize_tools()
-        self.agent = self._create_agent()
-        self.agent_executor = AgentExecutor.from_agent_and_tools(
-            agent=self.agent,
-            tools=self.tools,
-            memory=self.memory,
-            verbose=True,
-            max_iterations=settings.MAX_ITERATIONS,
-            handle_parsing_errors=True
-        )
 
     @abstractmethod
-    def _initialize_tools(self) -> List[Tool]:
-        """Initialize agent-specific tools"""
+    def _initialize_tools(self) -> List[Any]:
+        """Initialize agent-specific tools (optional for this simplified agent)."""
         pass
 
-    def _create_agent(self):
-        """Create ReAct agent"""
-        prompt = PromptTemplate.from_template(
-            """You are a {agent_type} agent. Use the available tools to answer questions.
-            
-            Previous conversation:
-            {chat_history}
-            
-            Question: {input}
-            
-            {agent_scratchpad}"""
-        )
-        
-        return create_react_agent(
-            llm=self.llm,
-            tools=self.tools,
-            prompt=prompt.partial(agent_type=self.agent_type.value)
-        )
-
     async def execute(self, query: str, **kwargs) -> AgentResponse:
-        """Execute agent with given query"""
+        """Execute agent with given query using a simple LLM prompt."""
         try:
-            # Prepare inputs
-            inputs = {
-                "input": query,
-                **kwargs
-            }
-            
-            # Execute agent
-            result = await self.agent_executor.ainvoke(inputs)
-            
-            # Parse response
-            response = self._parse_response(result.get('output', ''))
-            
+            prompt = PromptTemplate.from_template(
+                "You are a {agent_type} agent. Answer the user's question.\n\n"
+                "Question: {input}"
+            )
+            chain = prompt | self.llm
+            result = await chain.ainvoke(
+                {"agent_type": self.agent_type.value, "input": query, **kwargs}
+            )
+
+            content = getattr(result, "content", str(result))
+            response = self._parse_response(content)
+
             return AgentResponse(
                 agent_type=self.agent_type,
                 response=response,
                 data=self._extract_data(result),
                 source=f"{self.agent_type.value}_agent",
-                confidence=0.9
+                confidence=0.9,
             )
         except Exception as e:
             return AgentResponse(
                 agent_type=self.agent_type,
                 response=f"Error: {str(e)}",
                 source=f"{self.agent_type.value}_agent",
-                confidence=0.0
+                confidence=0.0,
             )
 
     def _parse_response(self, raw_response: str) -> str:

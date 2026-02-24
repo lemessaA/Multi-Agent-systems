@@ -2,19 +2,21 @@
 fastapi==0.104.1
 uvicorn==0.24.0
 python-dotenv==1.0.0
-pydantic==2.5.0
+pydantic>=2.7.4,<3.0
 
 # LangChain Stack
-langchain==0.0.340
-langchain-openai==0.0.2
-langchain-ollama==0.1.0
-langgraph==0.0.13
+langchain==1.2.7
+langchain-google-genai==4.2.1
+langgraph>=1.0.3,<2.0
 
 # Data Fetching
 requests==2.31.0
 aiohttp==3.9.1
 beautifulsoup4==4.12.2
 yfinance==0.2.33
+
+# UI
+streamlit==1.41.0
 
 # Development
 pytest==7.4.3

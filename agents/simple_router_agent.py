@@ -1,9 +1,8 @@
 from typing import Dict, Any, List
 from langgraph.graph import StateGraph, END
-from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
 from schemas.models import AgentType, AgentRequest, AgentResponse
-from config.settings import settings
+from llm_factory import get_chat_llm
 import uuid
 from datetime import datetime
 
@@ -17,11 +16,7 @@ class RouterState:
 
 class SimpleRouterAgent:
     def __init__(self):
-        self.llm = ChatOllama(
-            model=settings.OLLAMA_MODEL,
-            base_url=settings.OLLAMA_BASE_URL,
-            temperature=0.1
-        )
+        self.llm = get_chat_llm(temperature=0.1)
         
         # Create the router graph
         self.workflow = self._create_workflow()
