@@ -78,9 +78,9 @@ def main() -> None:
         layout="wide",
     )
 
-    st.title("🤖 Multi-Agent AI Console")
+    st.title("🤖 Cloud-Native intelligence Platform ")
     st.caption(
-        "AI-mode UI for your weather, news, and finance agents with intelligent routing."
+        "goal-oriented interface for your weather, news, and finance agents with intelligent routing."
     )
 
     with st.sidebar:
