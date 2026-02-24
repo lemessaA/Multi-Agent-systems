@@ -102,7 +102,7 @@ def main() -> None:
         st.markdown("- **News**: `Top AI headlines today`")
         st.markdown("- **Finance**: `Current price of AAPL and Bitcoin`")
 
-    st.markdown("### Ask the AI router")
+    st.markdown("### Ask the AI")
     query = st.text_area(
         "Natural language query",
         placeholder="Ask about weather, news, markets, or combine them in one question...",
