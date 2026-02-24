@@ -94,16 +94,40 @@ class SimpleRouterAgent:
         return state
 
     async def _execute_finance_agent(self, state: RouterState) -> RouterState:
-        """Execute finance agent - simplified version"""
-        # Simple finance response for now
-        response = AgentResponse(
-            agent_type=AgentType.FINANCE,
-            response=f"Finance information for: {state['query']} (This is a placeholder response)",
-            source="finance_agent",
-            confidence=0.8
-        )
-        state["responses"] = [response]
-        return state
+        """Execute finance agent using enhanced FinanceAgent"""
+        try:
+            from agents.finance_agent import FinanceAgent
+            finance_agent = FinanceAgent()
+            result = await finance_agent.execute(state["query"])
+            
+            # Convert result to expected format
+            if isinstance(result, dict) and "responses" in result:
+                state["responses"] = result["responses"]
+            elif isinstance(result, AgentResponse):
+                # Handle single AgentResponse
+                state["responses"] = [result]
+            else:
+                # Handle other response formats
+                response = AgentResponse(
+                    agent_type=AgentType.FINANCE,
+                    response=str(result),
+                    source="enhanced_finance_agent",
+                    confidence=0.9
+                )
+                state["responses"] = [response]
+                
+            return state
+            
+        except Exception as e:
+            # Fallback to simple response
+            response = AgentResponse(
+                agent_type=AgentType.FINANCE,
+                response=f"Finance information for: {state['query']} (Enhanced agent error: {str(e)})",
+                source="finance_agent",
+                confidence=0.8
+            )
+            state["responses"] = [response]
+            return state
 
     def _decide_next_node(self, state: RouterState) -> str:
         """Decide next node based on router output"""
