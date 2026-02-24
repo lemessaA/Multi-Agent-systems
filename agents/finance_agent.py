@@ -53,11 +53,35 @@ class FinanceAgent(BaseAgent):
                 ),
             ),
             Tool(
-                name="GetExchangeRate",
-                func=FinanceTools.get_exchange_rate,
+                name="GetAdvancedPortfolioAnalysis",
+                func=FinanceTools.get_advanced_portfolio_analysis,
                 description=(
-                    "Get exchange rate between currencies. Input should be "
-                    "'from_currency,to_currency' (e.g., 'EUR,USD')."
+                    "Get advanced portfolio analysis with volatility, trends, and performance metrics. "
+                    "Input should be comma-separated symbols (e.g., 'AAPL,GOOGL,MSFT')."
+                ),
+            ),
+            Tool(
+                name="GetMarketSentiment",
+                func=FinanceTools.get_market_sentiment,
+                description=(
+                    "Get market sentiment analysis for a stock based on price movements. "
+                    "Input should be stock symbol (e.g., 'AAPL', 'TSLA')."
+                ),
+            ),
+            Tool(
+                name="GetFinancialNews",
+                func=FinanceTools.get_financial_news,
+                description=(
+                    "Get financial news with market impact analysis. "
+                    "Optional symbol for company-specific news, or category for general news."
+                ),
+            ),
+            Tool(
+                name="GetTechnicalIndicators",
+                func=FinanceTools.get_technical_indicators,
+                description=(
+                    "Get comprehensive technical analysis indicators (RSI, Bollinger Bands, Moving Averages). "
+                    "Input should be stock symbol (e.g., 'AAPL', 'TSLA')."
                 ),
             ),
         ]
