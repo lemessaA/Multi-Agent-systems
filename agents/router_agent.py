@@ -9,13 +9,15 @@ from llm_factory import get_chat_llm
 import uuid
 from datetime import datetime
 
-class RouterState:
-    def __init__(self):
-        self.query: str = ""
-        self.agent_type: AgentType = None
-        self.responses: List[AgentResponse] = []
-        self.conversation_id: str = ""
-        self.start_time: datetime = None
+from typing import TypedDict, Any
+from datetime import datetime
+
+class RouterState(TypedDict, total=False):
+    query: str
+    agent_type: Any
+    responses: List[AgentResponse]
+    conversation_id: str
+    start_time: datetime
 
 class RouterAgent:
     def __init__(self):
@@ -79,39 +81,36 @@ class RouterAgent:
         """)
         
         chain = prompt | self.llm
-        result = await chain.ainvoke({"query": state.query})
+        result = await chain.ainvoke({"query": state["query"]})
         
         return {"agent_type": result.content.strip().lower()}
 
     async def _execute_weather_agent(self, state: RouterState) -> Dict[str, Any]:
         """Execute weather agent"""
         agent = self.agents[AgentType.WEATHER]
-        response = await agent.execute(state.query)
+        response = await agent.execute(state["query"])
         return {"responses": [response]}
 
     async def _execute_news_agent(self, state: RouterState) -> Dict[str, Any]:
         """Execute news agent"""
         agent = self.agents[AgentType.NEWS]
-        response = await agent.execute(state.query)
+        response = await agent.execute(state["query"])
         return {"responses": [response]}
 
     async def _execute_finance_agent(self, state: RouterState) -> Dict[str, Any]:
         """Execute finance agent"""
         agent = self.agents[AgentType.FINANCE]
-        response = await agent.execute(state.query)
+        response = await agent.execute(state["query"])
         return {"responses": [response]}
 
     def _decide_next_node(self, state: RouterState) -> str:
         """Decide next node based on router output"""
-        return state.agent_type
+        return state.get("agent_type", "multiple")
 
     async def _aggregate_responses(self, state: RouterState) -> Dict[str, Any]:
         """Aggregate responses from multiple agents"""
         # If we have responses from execution nodes, add them
-        if hasattr(state, 'responses') and state.responses:
-            all_responses = state.responses
-        else:
-            all_responses = []
+        all_responses = state.get("responses", [])
         
         return {
             "responses": all_responses,
@@ -121,10 +120,11 @@ class RouterAgent:
     async def process(self, request: AgentRequest) -> Dict[str, Any]:
         """Process query through router"""
         # Initialize state
-        state = RouterState()
-        state.query = request.query
-        state.conversation_id = str(uuid.uuid4())
-        state.start_time = datetime.now()
+        state: RouterState = {
+            "query": request.query,
+            "conversation_id": str(uuid.uuid4()),
+            "start_time": datetime.now()
+        }
         
         # If agent type is specified, use it directly
         if request.agent_type:
@@ -141,10 +141,10 @@ class RouterAgent:
             # Use router for auto-detection
             result = await self.workflow.ainvoke(state)
         
-        execution_time = (datetime.now() - state.start_time).total_seconds()
+        execution_time = (datetime.now() - state["start_time"]).total_seconds()
         
         return {
-            "conversation_id": state.conversation_id,
+            "conversation_id": state["conversation_id"],
             "responses": result.get("responses", []),
             "execution_time": execution_time,
             "agent_type": request.agent_type or "auto"

@@ -8,63 +8,59 @@ from config.settings import settings
 
 class FinanceTools:
     @staticmethod
-    def get_google_finance_data(symbol: str, data_type: str = "price") -> Dict[str, Any]:
-        """Get real-time financial data from Google Finance"""
+    def _yf_with_retry(func, *args, max_retries=3, **kwargs):
+        import time
+        for attempt in range(max_retries):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if "429" in str(e) and attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)
+                else:
+                    raise e
+
+    @staticmethod
+    def get_alpha_vantage_data(symbol: str) -> Dict[str, Any]:
+        """Get real-time financial data from Alpha Vantage"""
         try:
-            # Google Finance URL construction
-            base_url = "https://www.google.com/finance/quote"
-            
-            if data_type == "price":
-                url = f"{base_url}/{symbol}"
-            elif data_type == "chart":
-                url = f"{base_url}/{symbol}:NASDAQ"
-            else:
-                url = f"{base_url}/{symbol}"
-            
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            if not settings.ALPHA_VANTAGE_API_KEY:
+                return {'error': 'Alpha Vantage API key not configured'}
+                
+            url = "https://www.alphavantage.co/query"
+            params = {
+                "function": "GLOBAL_QUOTE",
+                "symbol": symbol,
+                "apikey": settings.ALPHA_VANTAGE_API_KEY
             }
-            
-            response = requests.get(url, headers=headers, timeout=10)
+            response = requests.get(url, params=params, timeout=10)
             
             if response.status_code == 200:
-                # Parse Google Finance response
-                content = response.text
-                
-                # Extract price data (simplified parsing)
-                import re
-                
-                price_match = re.search(r'data-last-price="([^"]+)"', content)
-                change_match = re.search(r'data-change="([^"]+)"', content)
-                change_percent_match = re.search(r'data-change-percent="([^"]+)"', content)
-                
-                if price_match:
-                    current_price = float(price_match.group(1).replace(',', ''))
-                    change = float(change_match.group(1)) if change_match else 0.0
-                    change_percent = float(change_percent_match.group(1)) if change_percent_match else 0.0
-                    
+                data = response.json()
+                if "Global Quote" in data and data["Global Quote"]:
+                    quote = data["Global Quote"]
                     return {
                         'symbol': symbol.upper(),
-                        'current_price': current_price,
-                        'change': change,
-                        'change_percent': change_percent,
-                        'source': 'Google Finance',
+                        'current_price': float(quote.get("05. price", 0)),
+                        'change': float(quote.get("09. change", 0)),
+                        'change_percent': float(quote.get("10. change percent", "0%").strip("%")),
+                        'source': 'Alpha Vantage',
                         'timestamp': time.time()
                     }
+                elif "Information" in data:
+                    return {'error': f"Alpha Vantage rate limit: {data['Information']}"}
                 else:
-                    return {'error': f"Could not parse price data for {symbol}"}
+                    return {'error': f"Could not parse quote data for {symbol}"}
             else:
-                return {'error': f"Failed to fetch Google Finance data: HTTP {response.status_code}"}
-                
+                return {'error': f"Failed to fetch Alpha Vantage data: HTTP {response.status_code}"}
         except Exception as e:
-            return {'error': f"Google Finance error: {str(e)}"}
+            return {'error': f"Alpha Vantage error: {str(e)}"}
 
     @staticmethod
     def get_real_time_quote(symbol: str) -> Dict[str, Any]:
         """Get comprehensive real-time quote from multiple sources"""
         try:
             # Try Google Finance first (fastest)
-            google_data = FinanceTools.get_google_finance_data(symbol, "price")
+            google_data = FinanceTools.get_alpha_vantage_data(symbol)
             
             if 'error' not in google_data:
                 return google_data
@@ -112,15 +108,15 @@ class FinanceTools:
         """Get current stock price using Google Finance with yfinance fallback"""
         try:
             # Try Google Finance first for real-time data
-            google_data = FinanceTools.get_google_finance_data(symbol, "price")
+            google_data = FinanceTools.get_alpha_vantage_data(symbol)
             
             if 'error' not in google_data:
                 return google_data
             
             # Fallback to yfinance for comprehensive data
             stock = yf.Ticker(symbol)
-            info = stock.info
-            history = stock.history(period="1d")
+            info = FinanceTools._yf_with_retry(lambda: stock.info)
+            history = FinanceTools._yf_with_retry(stock.history, period="1d")
             
             if history.empty:
                 return {'error': f"No data found for symbol {symbol}"}
@@ -148,7 +144,7 @@ class FinanceTools:
         """Get cryptocurrency price using Google Finance with yfinance fallback"""
         try:
             # Try Google Finance first for real-time crypto data
-            google_data = FinanceTools.get_google_finance_data(f"{crypto.upper()}-USD", "price")
+            google_data = FinanceTools.get_alpha_vantage_data(f"{crypto.upper()}-USD")
             
             if 'error' not in google_data:
                 return {
@@ -171,7 +167,7 @@ class FinanceTools:
             
             symbol = cryptos.get(crypto.lower(), f"{crypto.upper()}-USD")
             stock = yf.Ticker(symbol)
-            info = stock.info
+            info = FinanceTools._yf_with_retry(lambda: stock.info)
             
             return {
                 'crypto': crypto,
@@ -241,7 +237,7 @@ class FinanceTools:
                     try:
                         import yfinance as yf
                         ticker = yf.Ticker(symbol)
-                        hist = ticker.history(period=timeframe)
+                        hist = FinanceTools._yf_with_retry(ticker.history, period=timeframe)
                         if not hist.empty:
                             # Calculate volatility and trend
                             prices = hist['Close']
@@ -319,23 +315,35 @@ class FinanceTools:
             return {'error': f"Sentiment analysis error: {str(e)}"}
 
     @staticmethod
-    def get_financial_news(symbol: str = None, category: str = "general") -> Dict[str, Any]:
-        """Get financial news with market impact analysis"""
+    def get_financial_news(symbol: str = None, category: str = "business") -> Dict[str, Any]:
+        """Get financial news using NewsAPI"""
         try:
-            # This would integrate with financial news APIs
-            # For now, provide structured news data
-            return {
-                'symbol': symbol,
-                'category': category,
-                'headlines': [
-                    "Market shows positive momentum in tech sector",
-                    "Federal Reserve signals potential rate changes",
-                    "Earnings season beats analyst expectations"
-                ],
-                'market_impact': 'moderate',
-                'timestamp': time.time(),
-                'source': 'financial_news_aggregator'
-            }
+            url = "https://newsapi.org/v2/everything" if symbol else "https://newsapi.org/v2/top-headlines"
+            params = {'apiKey': settings.NEWS_API_KEY, 'language': 'en', 'pageSize': 5}
+            
+            if symbol:
+                params['q'] = f"{symbol} stock OR finance OR market"
+                params['sortBy'] = 'relevance'
+            else:
+                params['category'] = category
+                params['country'] = 'us'
+                
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                headlines = [article['title'] for article in data.get('articles', [])]
+                
+                return {
+                    'symbol': symbol,
+                    'category': category,
+                    'headlines': headlines if headlines else ["No specific news found for this symbol today."],
+                    'market_impact': 'unknown',
+                    'timestamp': time.time(),
+                    'source': 'NewsAPI'
+                }
+            else:
+                return {'error': f"NewsAPI failed: {response.text}"}
         except Exception as e:
             return {'error': f"Financial news error: {str(e)}"}
 
@@ -345,7 +353,7 @@ class FinanceTools:
         try:
             import yfinance as yf
             ticker = yf.Ticker(symbol)
-            hist = ticker.history(period=period)
+            hist = FinanceTools._yf_with_retry(ticker.history, period=period)
             
             if hist.empty:
                 return {'error': f"No historical data for {symbol}"}
@@ -434,7 +442,7 @@ class FinanceTools:
                 # Fallback using yfinance for FX pairs
                 symbol = f"{from_currency}{to_currency}=X"
                 stock = yf.Ticker(symbol)
-                info = stock.info
+                info = FinanceTools._yf_with_retry(lambda: stock.info)
                 
                 return {
                     'from': from_currency,

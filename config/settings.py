@@ -5,11 +5,15 @@ load_dotenv()
 
 class Settings:
     # LLM provider / model
-    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")  # 'gemini' or 'ollama'
+    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")  # 'groq', 'ollama', or 'gemini'
 
     # Gemini Settings
     GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    
+    # Groq Settings
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
     
     # Ollama Settings
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")

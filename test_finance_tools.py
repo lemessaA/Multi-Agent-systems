@@ -9,13 +9,13 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from tools.finance_tools import FinanceTools
 
-def test_google_finance():
-    """Test Google Finance integration"""
-    print("🔍 Testing Google Finance Integration...")
+def test_alpha_vantage():
+    """Test Alpha Vantage integration"""
+    print("🔍 Testing Alpha Vantage Integration...")
     
     # Test stock price
     print("\n📈 Testing Stock Price (AAPL):")
-    aapl_data = FinanceTools.get_google_finance_data("AAPL")
+    aapl_data = FinanceTools.get_alpha_vantage_data("AAPL")
     if 'error' in aapl_data:
         print(f"   ❌ {aapl_data['error']}")
     else:
@@ -25,7 +25,7 @@ def test_google_finance():
     
     # Test crypto
     print("\n₿ Testing Crypto Price (BTC):")
-    btc_data = FinanceTools.get_google_finance_data("BTC-USD")
+    btc_data = FinanceTools.get_alpha_vantage_data("BTC-USD")
     if 'error' in btc_data:
         print(f"   ❌ {btc_data['error']}")
     else:
@@ -42,8 +42,8 @@ def test_real_time_quote():
     else:
         print(f"   ✅ Price: ${tsla_data.get('current_price', 'N/A')}")
         print(f"   🌐 Source: {tsla_data.get('source', 'Unknown')}")
-        if tsla_data.get('google_finance_available'):
-            print("   🎯 Google Finance data available!")
+        if tsla_data.get('source') == 'Alpha Vantage':
+            print("   🎯 Alpha Vantage data available!")
         else:
             print("   🔄 Using Yahoo Finance fallback")
 
@@ -84,16 +84,16 @@ def test_enhanced_crypto():
     else:
         print(f"   ✅ ETH Price: ${crypto_data.get('current_price', 'N/A')}")
         print(f"   🌐 Source: {crypto_data.get('source', 'Unknown')}")
-        if crypto_data.get('google_finance_available'):
-            print("   🎯 Google Finance data available!")
+        if crypto_data.get('source') == 'Alpha Vantage':
+            print("   🎯 Alpha Vantage data available!")
         else:
             print("   🔄 Using Yahoo Finance fallback")
 
 if __name__ == "__main__":
-    print("🧪 Testing Enhanced Finance Tools with Google Finance Integration\n")
+    print("🧪 Testing Enhanced Finance Tools with Alpha Vantage Integration\n")
     
     tests = [
-        test_google_finance,
+        test_alpha_vantage,
         test_real_time_quote,
         test_portfolio,
         test_market_summary,
@@ -111,6 +111,6 @@ if __name__ == "__main__":
     print(f"\n📊 Test Results: {passed}/{len(tests)} tests passed")
     
     if passed == len(tests):
-        print("🎉 All finance tools working with Google Finance integration!")
+        print("🎉 All finance tools working with Alpha Vantage integration!")
     else:
         print("⚠️  Some tests failed. Check output above.")

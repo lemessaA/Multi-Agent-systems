@@ -90,36 +90,28 @@ class FinanceAgent(BaseAgent):
         """Optionally customize parsing for finance responses."""
         return raw_response
 
-    async def execute(self, query: str, **kwargs) -> Dict[str, Any]:
+    async def execute(self, query: str, **kwargs) -> AgentResponse:
         """Execute finance query using enhanced tools"""
         try:
             # Use the base agent's execute method which will call tools
             result = await super().execute(query, **kwargs)
             
-            # Extract meaningful response from the base agent result
+            # The base agent already returns an AgentResponse
             if isinstance(result, AgentResponse):
-                return {
-                    "responses": [result],
-                    "data_source": "enhanced_finance_tools"
-                }
+                result.source = "enhanced_finance_tools"
+                return result
             else:
-                return {
-                    "responses": [AgentResponse(
-                        agent_type=self.agent_type,
-                        response=str(result),
-                        source="enhanced_finance_agent",
-                        confidence=0.9
-                    )],
-                    "data_source": "enhanced_finance_tools"
-                }
+                return AgentResponse(
+                    agent_type=self.agent_type,
+                    response=str(result),
+                    source="enhanced_finance_agent",
+                    confidence=0.9
+                )
                 
         except Exception as e:
-            return {
-                "responses": [AgentResponse(
-                    agent_type=self.agent_type,
-                    response=f"Finance processing error: {str(e)}",
-                    source="enhanced_finance_agent",
-                    confidence=0.0
-                )],
-                "data_source": "enhanced_finance_tools"
-            }
+            return AgentResponse(
+                agent_type=self.agent_type,
+                response=f"Finance processing error: {str(e)}",
+                source="enhanced_finance_agent",
+                confidence=0.0
+            )
