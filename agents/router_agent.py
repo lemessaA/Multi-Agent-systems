@@ -9,15 +9,13 @@ from llm_factory import get_chat_llm
 import uuid
 from datetime import datetime
 
-from typing import TypedDict, Any
-from datetime import datetime
-
-class RouterState(TypedDict, total=False):
-    query: str
-    agent_type: Any
-    responses: List[AgentResponse]
-    conversation_id: str
-    start_time: datetime
+class RouterState:
+    def __init__(self):
+        self.query: str = ""
+        self.agent_type: AgentType = None
+        self.responses: List[AgentResponse] = []
+        self.conversation_id: str = ""
+        self.start_time: datetime = None
 
 class RouterAgent:
     def __init__(self):
@@ -67,50 +65,77 @@ class RouterAgent:
 
     async def _route_query(self, state: RouterState) -> Dict[str, Any]:
         """Route query to appropriate agent"""
-        prompt = PromptTemplate.from_template("""
-        Analyze the user query and determine which agent(s) should handle it.
-        
-        Available agents:
-        1. weather_agent - for weather-related queries (temperature, forecast, climate)
-        2. news_agent - for news, headlines, current events
-        3. finance_agent - for stocks, crypto, exchange rates, financial data
-        
-        Query: {query}
-        
-        Respond with ONLY one of: 'weather', 'news', 'finance', or 'multiple' if it requires multiple agents.
-        """)
-        
-        chain = prompt | self.llm
-        result = await chain.ainvoke({"query": state["query"]})
-        
-        return {"agent_type": result.content.strip().lower()}
+        router_prompt = PromptTemplate.from_template(
+            """You are an intelligent router that decides which specialized AI agents
+should handle a user request.
+
+Available agents:
+- weather_agent: weather, temperature, forecasts, climate, conditions by location
+- news_agent: news, headlines, breaking stories, topic-specific news, explanations
+- finance_agent: stocks, crypto, forex, market data, financial insights
+
+USER QUERY:
+{query}
+
+1. Decide which agent(s) are truly required.
+2. Prefer a single agent when possible; only use multiple if the question clearly spans domains.
+3. Think step-by-step but respond in a compact machine-readable form.
+
+Respond with a single JSON object, and nothing else, in this format:
+
+{{
+  "route": "weather" | "news" | "finance" | "multiple",
+  "reason": "short explanation of why this route was chosen"
+}}
+
+JSON:
+"""
+        )
+
+        chain = router_prompt | self.llm
+        result = await chain.ainvoke({"query": state.query})
+
+        content = getattr(result, "content", "").strip()
+        # Fallback: if parsing fails, treat content as a plain label
+        try:
+            import json
+
+            data = json.loads(content)
+            route = str(data.get("route", "")).strip().lower()
+        except Exception:
+            route = content.lower()
+
+        return {"agent_type": route}
 
     async def _execute_weather_agent(self, state: RouterState) -> Dict[str, Any]:
         """Execute weather agent"""
         agent = self.agents[AgentType.WEATHER]
-        response = await agent.execute(state["query"])
+        response = await agent.execute(state.query)
         return {"responses": [response]}
 
     async def _execute_news_agent(self, state: RouterState) -> Dict[str, Any]:
         """Execute news agent"""
         agent = self.agents[AgentType.NEWS]
-        response = await agent.execute(state["query"])
+        response = await agent.execute(state.query)
         return {"responses": [response]}
 
     async def _execute_finance_agent(self, state: RouterState) -> Dict[str, Any]:
         """Execute finance agent"""
         agent = self.agents[AgentType.FINANCE]
-        response = await agent.execute(state["query"])
+        response = await agent.execute(state.query)
         return {"responses": [response]}
 
     def _decide_next_node(self, state: RouterState) -> str:
         """Decide next node based on router output"""
-        return state.get("agent_type", "multiple")
+        return state.agent_type
 
     async def _aggregate_responses(self, state: RouterState) -> Dict[str, Any]:
         """Aggregate responses from multiple agents"""
         # If we have responses from execution nodes, add them
-        all_responses = state.get("responses", [])
+        if hasattr(state, 'responses') and state.responses:
+            all_responses = state.responses
+        else:
+            all_responses = []
         
         return {
             "responses": all_responses,
@@ -120,11 +145,10 @@ class RouterAgent:
     async def process(self, request: AgentRequest) -> Dict[str, Any]:
         """Process query through router"""
         # Initialize state
-        state: RouterState = {
-            "query": request.query,
-            "conversation_id": str(uuid.uuid4()),
-            "start_time": datetime.now()
-        }
+        state = RouterState()
+        state.query = request.query
+        state.conversation_id = str(uuid.uuid4())
+        state.start_time = datetime.now()
         
         # If agent type is specified, use it directly
         if request.agent_type:
@@ -141,10 +165,10 @@ class RouterAgent:
             # Use router for auto-detection
             result = await self.workflow.ainvoke(state)
         
-        execution_time = (datetime.now() - state["start_time"]).total_seconds()
+        execution_time = (datetime.now() - state.start_time).total_seconds()
         
         return {
-            "conversation_id": state["conversation_id"],
+            "conversation_id": state.conversation_id,
             "responses": result.get("responses", []),
             "execution_time": execution_time,
             "agent_type": request.agent_type or "auto"

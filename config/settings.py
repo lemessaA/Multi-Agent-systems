@@ -5,19 +5,15 @@ load_dotenv()
 
 class Settings:
     # LLM provider / model
-    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")  # 'groq', 'ollama', or 'gemini'
+    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")  # 'gemini' or 'ollama'
 
-    # Gemini Settings
-    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    
-    # Groq Settings
-    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-    GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
-    
     # Ollama Settings
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "glm-5:cloud")
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
+
+    # Gemini Settings
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     
     # API Keys for external services
     OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")

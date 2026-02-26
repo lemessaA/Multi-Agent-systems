@@ -7,6 +7,33 @@ from llm_factory import get_chat_llm
 from schemas.models import AgentType, AgentResponse
 
 
+BASE_AGENT_PROMPT = PromptTemplate.from_template(
+    """You are the {agent_type} agent in a multi-agent system.
+
+Your role:
+- WEATHER agent: reason about weather, climate, forecasts, and conditions.
+- NEWS agent: reason about current events, headlines, and topical news.
+- FINANCE agent: reason about markets, stocks, crypto, and currencies.
+
+Guidelines:
+- Be concise but complete.
+- Use bullet points or short sections for clarity.
+- When using tools or external data, explain the result in plain language.
+- If information is uncertain or approximate, clearly say so.
+- If the question is outside your domain, say that and answer only what fits your expertise.
+
+User question:
+{input}
+
+Now respond in this structure:
+
+1. Short answer (1–3 sentences)
+2. Key details or breakdown
+3. (Optional) Suggestions or next steps related to this domain
+"""
+)
+
+
 class BaseAgent(ABC):
     def __init__(self, agent_type: AgentType):
         self.agent_type = agent_type
@@ -20,15 +47,11 @@ class BaseAgent(ABC):
         pass
 
     async def execute(self, query: str, **kwargs) -> AgentResponse:
-        """Execute agent with given query using a simple LLM prompt."""
+        """Execute agent with given query using a structured LLM prompt."""
         try:
-            prompt = PromptTemplate.from_template(
-                "You are a {agent_type} agent. Answer the user's question.\n\n"
-                "Question: {input}"
-            )
-            chain = prompt | self.llm
+            chain = BASE_AGENT_PROMPT | self.llm
             result = await chain.ainvoke(
-                {"agent_type": self.agent_type.value, "input": query, **kwargs}
+                {"agent_type": self.agent_type.value.upper(), "input": query, **kwargs}
             )
 
             content = getattr(result, "content", str(result))
@@ -53,23 +76,9 @@ class BaseAgent(ABC):
         """Parse raw agent response"""
         return raw_response
 
-    def _extract_data(self, result) -> Dict[str, Any]:
+    def _extract_data(self, result: Dict[str, Any]) -> Dict[str, Any]:
         """Extract structured data from agent result"""
-        # Handle AIMessage objects
-        if hasattr(result, 'content'):
-            return {
-                "raw_output": result.content,
-                "intermediate_steps": []
-            }
-        # Handle dict objects
-        elif isinstance(result, dict):
-            return {
-                "raw_output": result.get('output', ''),
-                "intermediate_steps": str(result.get('intermediate_steps', []))
-            }
-        # Handle other objects
-        else:
-            return {
-                "raw_output": str(result),
-                "intermediate_steps": []
-            }
+        return {
+            "raw_output": result.get("output", ""),
+            "intermediate_steps": str(result.get("intermediate_steps", [])),
+        }

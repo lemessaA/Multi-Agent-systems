@@ -57,29 +57,19 @@ def render_response(result: Dict[str, Any]) -> None:
         return
 
     for idx, resp in enumerate(responses, start=1):
-        # Handle both AgentResponse objects and dictionaries
-        if hasattr(resp, 'agent_type'):
-            agent_label = getattr(resp.agent_type, "value", str(resp.agent_type))
-            response_text = resp.response
-            data = resp.data
-        else:
-            # Handle dictionary format
-            agent_label = resp.get('agent_type', 'unknown')
-            response_text = resp.get('response', 'No response')
-            data = resp.get('data')
-        
+        agent_label = getattr(resp.agent_type, "value", str(resp.agent_type))
         with st.container(border=True):
             st.markdown(f"**Agent:** `{agent_label}`")
-            st.markdown(response_text)
-            
-            if data:
+            st.markdown(resp.response)
+
+            if resp.data:
                 with st.expander("View agent details"):
-                    if "raw_output" in data:
+                    if "raw_output" in resp.data:
                         st.markdown("**Raw output**")
-                        st.code(str(data["raw_output"]))
-                    if "intermediate_steps" in data:
+                        st.code(str(resp.data["raw_output"]))
+                    if "intermediate_steps" in resp.data:
                         st.markdown("**Intermediate steps**")
-                        st.code(str(data["intermediate_steps"]))
+                        st.code(str(resp.data["intermediate_steps"]))
 
 
 def main() -> None:
@@ -88,9 +78,9 @@ def main() -> None:
         layout="wide",
     )
 
-    st.title("🤖 Cloud-Native intelligence Platform ")
+    st.title("🤖 Multi-Agent AI Console")
     st.caption(
-        "goal-oriented interface for your weather, news, and finance agents with intelligent routing."
+        "AI-mode UI for your weather, news, and finance agents with intelligent routing."
     )
 
     with st.sidebar:
@@ -112,7 +102,7 @@ def main() -> None:
         st.markdown("- **News**: `Top AI headlines today`")
         st.markdown("- **Finance**: `Current price of AAPL and Bitcoin`")
 
-    st.markdown("### Ask the AI")
+    st.markdown("### Ask the AI router")
     query = st.text_area(
         "Natural language query",
         placeholder="Ask about weather, news, markets, or combine them in one question...",

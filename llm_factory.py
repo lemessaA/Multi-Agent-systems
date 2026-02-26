@@ -1,39 +1,40 @@
 from typing import Literal
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_ollama import ChatOllama
-from langchain_groq import ChatGroq
 
 from config.settings import settings
 
 
-Provider = Literal["gemini", "ollama", "groq"]
+Provider = Literal["gemini", "ollama"]
 
 
 def get_chat_llm(provider: Provider | None = None, temperature: float = 0.3):
     """Return a chat LLM instance based on configuration.
 
-    Supports Groq for high-performance, Ollama for local, and Gemini as fallback
+    Default provider is Gemini so we can easily test realtime functionality
+    just by setting GEMINI_API_KEY and (optionally) GEMINI_MODEL.
     """
     provider = (provider or settings.LLM_PROVIDER).lower()
 
-    if provider == "groq":
-        return ChatGroq(
-            model=settings.GROQ_MODEL,
-            api_key=settings.GROQ_API_KEY,
-            temperature=temperature,
-        )
-    elif provider == "ollama":
-        return ChatOllama(
-            model=settings.OLLAMA_MODEL,
-            base_url=settings.OLLAMA_BASE_URL,
-            temperature=temperature,
-        )
-    elif provider == "gemini":
+    if provider == "gemini":
         return ChatGoogleGenerativeAI(
             model=settings.GEMINI_MODEL,
             api_key=settings.GEMINI_API_KEY,
             temperature=temperature,
         )
-    else:
-        raise ValueError(f"Unsupported provider: {provider}")
+
+    # Fallback to Ollama (optional; requires langchain-ollama to be installed)
+    try:
+        from langchain_ollama import ChatOllama  # type: ignore
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError(
+            "Ollama provider requested but 'langchain-ollama' is not installed. "
+            "Either install langchain-ollama or set LLM_PROVIDER=gemini."
+        ) from exc
+
+    return ChatOllama(
+        model=settings.OLLAMA_MODEL,
+        base_url=settings.OLLAMA_BASE_URL,
+        temperature=temperature,
+    )
+

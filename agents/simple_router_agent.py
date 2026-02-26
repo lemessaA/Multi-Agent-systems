@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from langgraph.graph import StateGraph, END
 from langchain_core.prompts import PromptTemplate
 from schemas.models import AgentType, AgentRequest, AgentResponse
@@ -6,8 +6,13 @@ from llm_factory import get_chat_llm
 import uuid
 from datetime import datetime
 
-# Use dict-based state for LangGraph compatibility
-RouterState = Dict[str, Any]
+class RouterState:
+    def __init__(self):
+        self.query: str = ""
+        self.agent_type: AgentType = None
+        self.responses: List[AgentResponse] = []
+        self.conversation_id: str = ""
+        self.start_time: datetime = None
 
 class SimpleRouterAgent:
     def __init__(self):
@@ -48,117 +53,106 @@ class SimpleRouterAgent:
 
         return workflow.compile()
 
-    async def _route_query(self, state: RouterState) -> RouterState:
+    async def _route_query(self, state: RouterState) -> Dict[str, Any]:
         """Route query to appropriate agent"""
-        prompt = PromptTemplate.from_template("""
-        Analyze the user query and determine which agent(s) should handle it.
-        
-        Available agents:
-        1. weather_agent - for weather-related queries (temperature, forecast, climate)
-        2. news_agent - for news, headlines, current events
-        3. finance_agent - for stocks, crypto, exchange rates, financial data
-        
-        Query: {query}
-        
-        Respond with ONLY one of: 'weather', 'news', 'finance', or 'multiple' if it requires multiple agents.
-        """)
-        
-        chain = prompt | self.llm
-        result = await chain.ainvoke({"query": state["query"]})
-        
-        state["agent_type"] = result.content.strip().lower()
-        return state
+        router_prompt = PromptTemplate.from_template(
+            """You are an intelligent router that decides which specialized AI agents
+should handle a user request.
 
-    async def _execute_weather_agent(self, state: RouterState) -> RouterState:
+Available agents:
+- weather_agent: weather, temperature, forecasts, climate, conditions by location
+- news_agent: news, headlines, breaking stories, topic-specific news, explanations
+- finance_agent: stocks, crypto, forex, market data, financial insights
+
+USER QUERY:
+{query}
+
+1. Decide which agent(s) are truly required.
+2. Prefer a single agent when possible; only use multiple if the question clearly spans domains.
+3. Think step-by-step but respond in a compact machine-readable form.
+
+Respond with a single JSON object, and nothing else, in this format:
+
+{{
+  "route": "weather" | "news" | "finance" | "multiple",
+  "reason": "short explanation of why this route was chosen"
+}}
+
+JSON:
+"""
+        )
+
+        chain = router_prompt | self.llm
+        result = await chain.ainvoke({"query": state.query})
+
+        content = getattr(result, "content", "").strip()
+        try:
+            import json
+
+            data = json.loads(content)
+            route = str(data.get("route", "")).strip().lower()
+        except Exception:
+            route = content.lower()
+
+        return {"agent_type": route}
+
+    async def _execute_weather_agent(self, state: RouterState) -> Dict[str, Any]:
         """Execute weather agent - simplified version"""
         # Simple weather response for now
         response = AgentResponse(
             agent_type=AgentType.WEATHER,
-            response=f"Weather information for: {state['query']} (This is a placeholder response)",
+            response=f"Weather information for: {state.query} (This is a placeholder response)",
             source="weather_agent",
             confidence=0.8
         )
-        state["responses"] = [response]
-        return state
+        return {"responses": [response]}
 
-    async def _execute_news_agent(self, state: RouterState) -> RouterState:
+    async def _execute_news_agent(self, state: RouterState) -> Dict[str, Any]:
         """Execute news agent - simplified version"""
         # Simple news response for now
         response = AgentResponse(
             agent_type=AgentType.NEWS,
-            response=f"News information for: {state['query']} (This is a placeholder response)",
+            response=f"News information for: {state.query} (This is a placeholder response)",
             source="news_agent",
             confidence=0.8
         )
-        state["responses"] = [response]
-        return state
+        return {"responses": [response]}
 
-    async def _execute_finance_agent(self, state: RouterState) -> RouterState:
-        """Execute finance agent using enhanced FinanceAgent"""
-        try:
-            from agents.finance_agent import FinanceAgent
-            finance_agent = FinanceAgent()
-            result = await finance_agent.execute(state["query"])
-            
-            # Convert result to expected format
-            if isinstance(result, dict) and "responses" in result:
-                state["responses"] = result["responses"]
-            elif isinstance(result, AgentResponse):
-                # Handle single AgentResponse
-                state["responses"] = [result]
-            else:
-                # Handle other response formats
-                response = AgentResponse(
-                    agent_type=AgentType.FINANCE,
-                    response=str(result),
-                    source="enhanced_finance_agent",
-                    confidence=0.9
-                )
-                state["responses"] = [response]
-                
-            return state
-            
-        except Exception as e:
-            # Fallback to simple response
-            response = AgentResponse(
-                agent_type=AgentType.FINANCE,
-                response=f"Finance information for: {state['query']} (Enhanced agent error: {str(e)})",
-                source="finance_agent",
-                confidence=0.8
-            )
-            state["responses"] = [response]
-            return state
+    async def _execute_finance_agent(self, state: RouterState) -> Dict[str, Any]:
+        """Execute finance agent - simplified version"""
+        # Simple finance response for now
+        response = AgentResponse(
+            agent_type=AgentType.FINANCE,
+            response=f"Finance information for: {state.query} (This is a placeholder response)",
+            source="finance_agent",
+            confidence=0.8
+        )
+        return {"responses": [response]}
 
     def _decide_next_node(self, state: RouterState) -> str:
         """Decide next node based on router output"""
-        return state["agent_type"]
+        return state.agent_type
 
-    async def _aggregate_responses(self, state: RouterState) -> RouterState:
+    async def _aggregate_responses(self, state: RouterState) -> Dict[str, Any]:
         """Aggregate responses from multiple agents"""
         # If we have responses from execution nodes, add them
-        all_responses = state.get("responses", [])
+        if hasattr(state, 'responses') and state.responses:
+            all_responses = state.responses
+        else:
+            all_responses = []
         
-        # Calculate execution time
-        execution_time = (datetime.now() - state["start_time"]).total_seconds()
-        
-        # Update state with final results
-        state["execution_complete"] = True
-        state["execution_time"] = execution_time
-        
-        return state
+        return {
+            "responses": all_responses,
+            "execution_complete": True
+        }
 
     async def process(self, request: AgentRequest) -> Dict[str, Any]:
         """Process query through router"""
         # Initialize state
-        state = {
-            "query": request.query,
-            "conversation_id": str(uuid.uuid4()),
-            "start_time": datetime.now(),
-            "responses": [],
-            "agent_type": None,
-            "execution_complete": False,
-            "execution_time": 0.0
-        }
+        state = RouterState()
+        state.query = request.query
+        state.conversation_id = str(uuid.uuid4())
+        state.start_time = datetime.now()
         
         # If agent type is specified, use it directly
         if request.agent_type:
@@ -175,16 +169,12 @@ class SimpleRouterAgent:
             # Use router for auto-detection
             result = await self.workflow.ainvoke(state)
         
-        execution_time = (datetime.now() - state["start_time"]).total_seconds()
-        
-        # Handle the result - it should be a dict now
-        responses = result.get("responses", [])
-        final_execution_time = result.get("execution_time", execution_time)
+        execution_time = (datetime.now() - state.start_time).total_seconds()
         
         return {
-            "conversation_id": state["conversation_id"],
-            "responses": [response.__dict__ for response in responses] if responses else [],
-            "execution_time": final_execution_time,
+            "conversation_id": state.conversation_id,
+            "responses": result.get("responses", []),
+            "execution_time": execution_time,
             "agent_type": request.agent_type or "auto"
         }
 
