@@ -1,255 +1,237 @@
-A production-ready multi-agent system with intelligent routing, real-time data fetching, and comprehensive API integration. Built with LangChain, LangGraph, and FastAPI for enterprise-grade AI orchestration
+ A production-ready multi-agent system with intelligent routing, real-time data fetching, and a clean AI console UI.  
+Built with **LangChain**, **LangGraph**, **FastAPI**, and **Streamlit**, with pluggable LLM providers (Gemini or Ollama).
 
-✨ Features
+### Overview
 
-           🤖 Intelligent Agent Orchestration
+This project implements a smart router pattern over multiple specialized agents:
 
-      Router Pattern: AI-powered query routing using LangGraph state machines
+- **Weather agent**: current conditions and forecasts via OpenWeather.
+- **News agent**: top headlines and topic search via NewsAPI (plus async helpers).
+- **Finance agent**: stock, crypto, and FX data via external finance APIs.
+- **Router agent (LangGraph)**: decides which agent should handle each request based on the natural-language query.
 
-      Specialized Agents: Weather, News, and Finance agents with domain expertise
+You can access the system via:
 
-      Parallel Execution: Concurrent agent processing for complex queries
+- A **FastAPI** backend (`/query`, `/query/{agent_type}`, `/agents`, `/examples`, `/health`).
+- A **Streamlit AI console** (`streamlit_app.py`) with an “Auto (Smart Router)” mode and per-agent modes.
 
-      Memory Management: Persistent conversation context across sessions
+### Key Features
 
-                🔌 Real Data Integration
-    Weather Data: Real-time forecasts from OpenWeather API
+- **Smart auto-routing**  
+  - Uses a structured `PromptTemplate` and LangGraph state machine to route queries to `weather`, `news`, or `finance` (or multiple where appropriate).
+  - Returns a unified response with execution time and conversation ID.
 
-    News Updates: Latest headlines from NewsAPI + web scraping fallbacks
+- **Specialized agents with shared core**  
+  - `BaseAgent` provides a consistent, domain-aware prompt that:
+    - Explains each agent’s role (weather/news/finance).
+    - Enforces a structured answer (short answer, key details, optional suggestions).
+  - `WeatherAgent`, `NewsAgent`, and `FinanceAgent` plug in domain tools and custom parsing where needed.
 
-    Financial Markets: Stock prices, crypto rates, forex from multiple sources
+- **Pluggable LLM provider**  
+  - Centralized in `llm_factory.py`, which selects the underlying chat model:
+    - **Gemini (default)** via `langchain-google-genai`.
+    - **Ollama** fallback if installed and configured.
 
-    Fallback Systems: Graceful degradation when primary APIs fail
-                              
+- **Modern API & UI**  
+  - FastAPI app in `api/app.py` with CORS enabled and OpenAPI docs.
+  - Streamlit UI in `streamlit_app.py` with:
+    - Sidebar “AI Mode” selector (Auto / Weather / News / Finance).
+    - Optional location context.
+    - History-aware display of responses and intermediate details.
 
+### Tech Stack
 
-            🏗️ Enterprise Architecture
+- **Backend**: FastAPI, LangChain, LangGraph, Pydantic v2.
+- **LLM Providers**: Google Gemini (via `langchain-google-genai`), optional Ollama.
+- **UI**: Streamlit.
+- **Data Integrations**: OpenWeather, NewsAPI, finance APIs.
 
-        Production API: Fully documented REST API with FastAPI
+### Quick Start
 
-        Async Processing: High-performance async/await patterns throughout
+#### 1. Requirements
 
-        Rate Limiting: API key-based rate limiting and authentication
+- **Python**: 3.11+
+- **Virtual environment** (recommended)
+- **LLM provider**:
+  - **Gemini** (default): `GEMINI_API_KEY` from Google AI Studio.
+  - **Optional Ollama**: local Ollama installation and pulled model.
 
-        Comprehensive Logging: Structured logging with request tracing
+#### 2. Setup
 
-                  📊 Observability & Monitoring
-
-                    Health Checks: System status and agent availability monitoring
-
-                    Performance Metrics: Response time, cache hit rates, error tracking
-
-                    Request Tracing: End-to-end request lifecycle tracking
-
-                    API Documentation: Interactive Swagger/OpenAPI documentation
-
-
-
-                   🚀 Quick Start
-
-                    Python 3.11+
-
-                    Ollama installed locally
-                    (Optional) API keys for enhanced services
-
-                    INSTALLATION
-                    # Clone the repository
+```bash
 git clone https://github.com/lemessaA/multi-agent-system.git
 cd multi-agent-system
 
-# Install Ollama (if not already installed)
-# Visit: https://ollama.ai/download
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# Pull the required model
-ollama pull llama3.1:8b
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-venv\Scripts\activate
-
-# Install dependencies
 pip install -r requirements.txt
+```
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your configuration
+Create your environment file:
 
+```bash
+cp .env.example .env   # if .env.example is present
+```
 
+Then edit `.env` as needed.
 
-    ENVIRONMENT CONFIGURATON
-# Required (Ollama Configuration)
+### Environment Configuration
+
+At minimum, configure your LLM provider and any external APIs you plan to use:
+
+```env
+# LLM provider selection
+LLM_PROVIDER=gemini          # or 'ollama'
+
+# Gemini settings (default provider)
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-1.5-pro  # or another compatible Gemini model
+
+# Ollama settings (only if using Ollama)
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.1:8b
 
-# Optional (for enhanced functionality)
+# External APIs (optional but recommended)
 OPENWEATHER_API_KEY=your_openweather_api_key
 NEWS_API_KEY=your_newsapi_key
 ALPHA_VANTAGE_API_KEY=your_alphavantage_key
+```
 
+### Running the System
 
-    RUNNING THE SYSTEM  
-# Development mode with hot reload
+#### Backend (FastAPI)
+
+From the project root with the venv activated:
+
+```bash
 python main.py
+```
 
-# Or run directly with uvicorn
+This starts FastAPI on `http://localhost:8000`.
+
+You can also run directly with Uvicorn:
+
+```bash
 uvicorn api.app:app --reload --host 0.0.0.0 --port 8000
+```
 
+#### Streamlit AI Console
 
+In a separate terminal (same venv):
 
+```bash
+streamlit run streamlit_app.py
+```
 
-                    
-    VERIFY INSTALLATION
+This opens a browser UI where you can:
 
-# Check API health
+- Select **Auto (Smart Router)** or a specific agent.
+- Enter natural language queries.
+- Inspect responses and intermediate details.
+
+### Verifying Installation
+
+#### Health & Agents
+
+```bash
 curl http://localhost:8000/health
-
-# List available agents
 curl http://localhost:8000/agents
+curl http://localhost:8000/examples
+```
 
+#### Auto-Routing Query
 
-                  🎯 Usage Examples
-
-    Auto-Routing Query
-
-
+```bash
 curl -X POST "http://localhost:8000/query" \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "What is the weather in Tokyo and show me the latest tech news?",
-    "parameters": {
-      "location": "Tokyo",
-      "category": "technology"
-    }
+    "query": "What is the weather in Tokyo and show me the latest tech news?"
   }'
+```
 
+#### Direct Agent Queries
 
-     Direct Agent Query
-
-# Weather Agent
+```bash
+# Weather agent
 curl -X POST "http://localhost:8000/query/weather" \
   -H "Content-Type: application/json" \
   -d '{"query": "3-day forecast for London"}'
 
-# News Agent  
+# News agent
 curl -X POST "http://localhost:8000/query/news" \
   -H "Content-Type: application/json" \
   -d '{"query": "Top business headlines in the US"}'
 
-# Finance Agent
+# Finance agent
 curl -X POST "http://localhost:8000/query/finance" \
   -H "Content-Type: application/json" \
   -d '{"query": "Current price of AAPL and Bitcoin"}'
- 
+```
 
+### Python Client Example
 
-            Python Client Example
-
-
+```python
 import httpx
 import asyncio
 
-async def query_agent(query: str, agent_type: str = None):
+async def query_agent(query: str, agent_type: str | None = None):
     url = "http://localhost:8000/query"
     if agent_type:
         url = f"http://localhost:8000/query/{agent_type}"
-    
+
     async with httpx.AsyncClient() as client:
-        response = await client.post(
-            url,
-            json={"query": query},
-            timeout=30.0
-        )
-        return response.json()
+        resp = await client.post(url, json={"query": query}, timeout=30.0)
+        resp.raise_for_status()
+        return resp.json()
 
-# Example usage
-result = asyncio.run(query_agent("Weather in Paris", "weather"))
-print(result)
+async def main():
+    result = await query_agent("Weather in Paris", "weather")
+    print(result)
 
-                  🏗️ Architecture Overview
-            
-                ![alt text](multi-A.jpg)
+asyncio.run(main())
+```
 
-            
+### Project Structure
 
-
-
-
-            PROJECT STRUCTURE 
-
-
-
-            multi-agent-system/
+```text
+multi-agent-system/
 ├── agents/              # Agent implementations
-│   ├── base_agent.py   # Base agent class
+│   ├── base_agent.py    # Shared agent core & prompt
 │   ├── weather_agent.py
 │   ├── news_agent.py
 │   ├── finance_agent.py
-│   └── router_agent.py # LangGraph router
-├── tools/              # External API integrations
+│   ├── router_agent.py  # LangGraph router (production)
+│   └── simple_router_agent.py  # Simplified LangGraph workflow
+├── tools/               # External API integrations
 │   ├── weather_tools.py
 │   ├── news_tools.py
 │   └── finance_tools.py
-├── api/                # FastAPI application
-│   └── app.py         # API endpoints
-├── config/            # Configuration
+├── api/                 # FastAPI application
+│   └── app.py           # API endpoints
+├── config/              # Configuration
 │   └── settings.py
-├── schemas/           # Pydantic models
+├── schemas/             # Pydantic models
 │   └── models.py
-└── tests/             # Test suite
+├── llm_factory.py       # LLM provider selection (Gemini/Ollama)
+├── streamlit_app.py     # Streamlit AI console UI
+├── main.py              # Entry point to start FastAPI server
+└── tests/               # Test suite
+```
 
+### Performance & Limits
 
+- Typical end-to-end latency: a few seconds per query (routing + agent + external APIs).
+- When using Gemini, you are subject to Google AI **rate limits and quotas**:
+  - If you see 429 `RESOURCE_EXHAUSTED` errors:
+    - Upgrade your Gemini quota, or
+    - Switch to `LLM_PROVIDER=ollama` for local, unlimited testing.
 
+### Logging
 
-📊 Performance & Scaling
-Caching Strategy
-Agent Responses: 60-second TTL
-
-Weather Data: 5-minute TTL
-
-News Headlines: 2-minute TTL
-
-Stock Prices: 30-second TTL
-
-
-
-
-Rate Limiting
-
-
-Default: 100 requests/minute per API key
-
-Burst capacity: 20 requests/second
-
-Customizable per agent/endpoint
-
-
-
-📈 Monitoring & Logging
-
-
-# Logging configuration
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/app.log'),
-        logging.StreamHandler()
-    ]
-)
-
-# Key metrics tracked:
-# - Request/response times
-# - Agent execution times
-# - Cache hit rates
-# - API error rates
-# - Token usage
-
-
-
-
+- Logs can be written to `logs/app.log` (and stdout).
+- Useful metrics to monitor:
+  - Request and agent execution times.
+  - External API errors and timeouts.
+  - LLM usage and provider-side rate-limit responses.
 
